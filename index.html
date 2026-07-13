@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shortcut Trainer — tmux · iTerm2 · Cursor/VS Code</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --card: #191d31;
+    --card2: #21263f;
+    --text: #e8ebf5;
+    --muted: #9aa3c0;
+    --accent: #6ea8fe;
+    --good: #37d67a;
+    --bad: #ff6b6b;
+    --warn: #ffcf5c;
+    --chip: #2b3350;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: radial-gradient(1200px 800px at 50% -10%, #1c2140 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 60px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: .2px;
+  }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; text-align: center; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
+  .tab {
+    background: var(--card);
+    color: var(--muted);
+    border: 1px solid #2a3150;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .tab:hover { color: var(--text); border-color: #3a446e; }
+  .tab.active { background: var(--accent); color: #0b1020; border-color: var(--accent); }
+
+  .card {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    background: var(--card);
+    border: 1px solid #2a3150;
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    overflow: hidden;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 18px; }
+
+  .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; }
+  .prompt { font-size: 30px; font-weight: 700; line-height: 1.25; max-width: 560px; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  .timerwrap { width: 100%; max-width: 420px; }
+  .timerbar-bg { height: 12px; background: var(--card2); border-radius: 999px; overflow: hidden; }
+  .timerbar { height: 100%; width: 100%; background: var(--good); border-radius: 999px; transition: width .05s linear, background .2s; }
+  .timernum { margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .chips { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--chip);
+    border: 1px solid #3a446e;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .keycap {
+    background: #11152a;
+    border: 1px solid #3a446e;
+    border-bottom-width: 3px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 34px;
+    text-align: center;
+    font-size: 18px;
+  }
+  .then { color: var(--muted); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+
+  .words { color: var(--muted); font-size: 14px; }
+  .reveal-title { color: var(--warn); font-weight: 700; font-size: 14px; letter-spacing: .5px; }
+
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 22px; flex-wrap: wrap; }
+  button.btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .05s ease, filter .15s ease;
+    color: #0b1020;
+  }
+  button.btn:active { transform: translateY(1px); }
+  button.btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn.start { background: var(--good); }
+  .btn.pause { background: var(--warn); }
+  .btn.stop  { background: var(--bad); color: #1a0808; }
+  .btn.ghost { background: var(--card2); color: var(--text); border: 1px solid #3a446e; }
+
+  .stats { display: flex; gap: 22px; justify-content: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
+  .stats b { color: var(--text); font-size: 15px; display: block; }
+  .stats .stat { text-align: center; }
+
+  .big-emoji { font-size: 54px; }
+
+  .overlay {
+    position: absolute; inset: 0;
+    background: rgba(10,12,25,.82);
+    backdrop-filter: blur(3px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; z-index: 5;
+  }
+  .overlay h2 { margin: 0; font-size: 28px; }
+  .overlay p { color: var(--muted); margin: 0; max-width: 420px; }
+
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+
+  .note {
+    max-width: 720px; margin-top: 16px; color: var(--muted); font-size: 12px; line-height: 1.5;
+    background: var(--card); border: 1px solid #2a3150; border-radius: 12px; padding: 12px 16px;
+  }
+  .note b { color: var(--text); }
+  kbd {
+    background: #11152a; border: 1px solid #3a446e; border-radius: 5px; padding: 1px 6px; font-size: 11px;
+  }
+  .pulse-bad { animation: shake .3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+</style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <h1>⌨️ Shortcut Trainer</h1>
+  <div class="sub">Pick an app, hit Start, and race the 5-second clock. Get it right twice to retire it.</div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="card" id="card">
+    <div class="stage" id="stage"></div>
+    <div class="controls" id="controls"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="note">
+    <b>Heads-up on browser-reserved keys:</b> A few combos are grabbed by your browser/OS before the page sees them
+    (e.g. <kbd>⌘T</kbd> new tab, <kbd>⌘N</kbd> new window, <kbd>⌘⇧]</kbd>/<kbd>⌘⇧[</kbd> and <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch browser tabs).
+    They may still open/switch a browser tab. <kbd>⌘W</kbd> and <kbd>⌘Q</kbd> are intentionally excluded so you never lose the game.
+    Everything else is suppressed by the trainer. For the smoothest run, use this in a dedicated browser window.
+  </div>
+
+<script>
+/* ============================ Shortcut data ============================ */
+/* Each shortcut: { name, keys: [ "chord", "chord", ... ] }
+   A chord is a "+"-joined string of modifiers + one key, e.g. "Cmd+Shift+P".
+   Multiple chords in the array = a sequence (e.g. tmux prefix, or VS Code chords). */
+
+const RAW = {
+  tmux: {
+    label: "tmux",
+    blurb: "Default prefix is Ctrl+B — press it, <b>release it</b>, then tap the next key. (On macOS, don't hold Ctrl while pressing an arrow — that switches Spaces before the game can see it.)",
+    shortcuts: [
+      { name: "New window",                              keys: ["Ctrl+B", "C"] },
+      { name: "Next window",                             keys: ["Ctrl+B", "N"] },
+      { name: "Previous window",                         keys: ["Ctrl+B", "P"] },
+      { name: "Go to last active window",                keys: ["Ctrl+B", "L"] },
+      { name: "Go to window 0",                          keys: ["Ctrl+B", "0"] },
+      { name: "Split pane left / right (vertical)",      keys: ["Ctrl+B", "%"] },
+      { name: "Split pane top / bottom (horizontal)",    keys: ["Ctrl+B", "\""] },
+      { name: "Move to the pane on the right",           keys: ["Ctrl+B", "→"] },
+      { name: "Move to the pane on the left",            keys: ["Ctrl+B", "←"] },
+      { name: "Move to the pane above",                  keys: ["Ctrl+B", "↑"] },
+      { name: "Move to the pane below",                  keys: ["Ctrl+B", "↓"] },
+      { name: "Cycle to the next pane",                  keys: ["Ctrl+B", "O"] },
+      { name: "Zoom / unzoom the current pane",          keys: ["Ctrl+B", "Z"] },
+      { name: "Close the current pane",                  keys: ["Ctrl+B", "X"] },
+      { name: "Show pane numbers",                       keys: ["Ctrl+B", "Q"] },
+      { name: "Rename the current window",               keys: ["Ctrl+B", ","] },
+      { name: "List / choose a window",                  keys: ["Ctrl+B", "W"] },
+      { name: "Detach from the session",                 keys: ["Ctrl+B", "D"] },
+      { name: "Enter copy / scroll mode",                keys: ["Ctrl+B", "["] },
+      { name: "Paste the buffer",                        keys: ["Ctrl+B", "]"] },
+      { name: "Open the tmux command prompt",            keys: ["Ctrl+B", ":"] },
+    ]
+  },
+
+  iterm: {
+    label: "iTerm2",
+    blurb: "macOS defaults. ⌘ = Command, ⌥ = Option, ⇧ = Shift.",
+    shortcuts: [
+      { name: "New tab",                                 keys: ["Cmd+T"] },
+      { name: "New window",                              keys: ["Cmd+N"] },
+      { name: "Split pane left / right (vertical)",      keys: ["Cmd+D"] },
+      { name: "Split pane top / bottom (horizontal)",    keys: ["Cmd+Shift+D"] },
+      { name: "Go to the next tab",                      keys: ["Cmd+Shift+]"] },
+      { name: "Go to the previous tab",                  keys: ["Cmd+Shift+["] },
+      { name: "Go to the next pane",                     keys: ["Cmd+]"] },
+      { name: "Go to the previous pane",                 keys: ["Cmd+["] },
+      { name: "Go to tab 1",                             keys: ["Cmd+1"] },
+      { name: "Maximize / restore the active pane",      keys: ["Cmd+Shift+Enter"] },
+      { name: "Toggle full screen",                      keys: ["Cmd+Enter"] },
+      { name: "Find",                                    keys: ["Cmd+F"] },
+      { name: "Clear the buffer",                        keys: ["Cmd+K"] },
+      { name: "Open the paste history",                  keys: ["Cmd+Shift+H"] },
+      { name: "Select all",                              keys: ["Cmd+A"] },
+      { name: "Paste",                                   keys: ["Cmd+V"] },
+      { name: "Open Preferences / Settings",             keys: ["Cmd+,"] },
+    ]
+  },
+
+  vscode: {
+    label: "Cursor / VS Code",
+    blurb: "macOS defaults (shared by Cursor). A few Cursor-only AI actions are marked.",
+    shortcuts: [
+      { name: "Command Palette",                         keys: ["Cmd+Shift+P"] },
+      { name: "Quick Open a file",                       keys: ["Cmd+P"] },
+      { name: "Toggle the integrated terminal",          keys: ["Ctrl+`"] },
+      { name: "Toggle the sidebar",                      keys: ["Cmd+B"] },
+      { name: "Toggle the bottom panel",                 keys: ["Cmd+J"] },
+      { name: "Find in current file",                    keys: ["Cmd+F"] },
+      { name: "Replace in current file",                 keys: ["Cmd+Option+F"] },
+      { name: "Find in all files",                       keys: ["Cmd+Shift+F"] },
+      { name: "Toggle line comment",                     keys: ["Cmd+/"] },
+      { name: "Format the document",                     keys: ["Option+Shift+F"] },
+      { name: "Go to line…",                             keys: ["Ctrl+G"] },
+      { name: "Select next occurrence (add cursor)",     keys: ["Cmd+D"] },
+      { name: "Add a cursor on the line below",          keys: ["Cmd+Option+↓"] },
+      { name: "Move the current line down",              keys: ["Option+↓"] },
+      { name: "Move the current line up",                keys: ["Option+↑"] },
+      { name: "Copy the current line down",              keys: ["Option+Shift+↓"] },
+      { name: "Delete the current line",                 keys: ["Cmd+Shift+K"] },
+      { name: "Rename symbol",                           keys: ["F2"] },
+      { name: "Save",                                    keys: ["Cmd+S"] },
+      { name: "Open Settings (UI)",                      keys: ["Cmd+,"] },
+      { name: "Split the editor",                        keys: ["Cmd+\\"] },
+      { name: "Open Keyboard Shortcuts",                 keys: ["Cmd+K", "Cmd+S"] },
+      { name: "Cursor: open the AI chat",                keys: ["Cmd+L"] },
+      { name: "Cursor: inline edit / generate",          keys: ["Cmd+K"] },
+      { name: "Cursor: open Composer",                   keys: ["Cmd+I"] },
+    ]
+  },
+
+  finder: {
+    label: "Finder",
+    blurb: "macOS Finder defaults. ⌘ = Command, ⌥ = Option, ⌃ = Control, ⇧ = Shift, ⌫ = Delete.",
+    shortcuts: [
+      { name: "New Finder window",                       keys: ["Cmd+N"] },
+      { name: "New folder",                              keys: ["Cmd+Shift+N"] },
+      { name: "New folder with the selected items",      keys: ["Ctrl+Cmd+N"] },
+      { name: "Open the selected item",                  keys: ["Cmd+O"] },
+      { name: "Open the enclosing (parent) folder",      keys: ["Cmd+↑"] },
+      { name: "Open the selected folder",                keys: ["Cmd+↓"] },
+      { name: "Quick Look the selected item",            keys: ["Space"] },
+      { name: "Get Info on the selected item",           keys: ["Cmd+I"] },
+      { name: "Rename the selected item",                keys: ["Enter"] },
+      { name: "Duplicate the selected item",             keys: ["Cmd+D"] },
+      { name: "Make an alias of the selected item",      keys: ["Ctrl+Cmd+A"] },
+      { name: "Move the selected item to the Trash",     keys: ["Cmd+Delete"] },
+      { name: "Eject the selected disk",                 keys: ["Cmd+E"] },
+      { name: "Find / search",                           keys: ["Cmd+F"] },
+      { name: "Go to Folder…",                           keys: ["Cmd+Shift+G"] },
+      { name: "Go to the Home folder",                   keys: ["Cmd+Shift+H"] },
+      { name: "Go to the Applications folder",           keys: ["Cmd+Shift+A"] },
+      { name: "Go to the Desktop folder",                keys: ["Cmd+Shift+D"] },
+      { name: "Show or hide hidden files",               keys: ["Cmd+Shift+."] },
+      { name: "Go back",                                 keys: ["Cmd+["] },
+      { name: "Go forward",                              keys: ["Cmd+]"] },
+      { name: "Switch to icon view",                     keys: ["Cmd+1"] },
+      { name: "Switch to list view",                     keys: ["Cmd+2"] },
+      { name: "Switch to column view",                   keys: ["Cmd+3"] },
+      { name: "Switch to gallery view",                  keys: ["Cmd+4"] },
+      { name: "Show or hide the sidebar",                keys: ["Ctrl+Cmd+S"] },
+      { name: "Show or hide the Path Bar",               keys: ["Option+Cmd+P"] },
+      { name: "Copy the selected item",                  keys: ["Cmd+C"] },
+      { name: "Paste",                                   keys: ["Cmd+V"] },
+      { name: "Select all",                              keys: ["Cmd+A"] },
+    ]
+  }
+};
+
+/* ============================ Key parsing ============================ */
+
+const SHIFTED = {
+  "~":"Backquote","!":"Digit1","@":"Digit2","#":"Digit3","$":"Digit4","%":"Digit5",
+  "^":"Digit6","&":"Digit7","*":"Digit8","(":"Digit9",")":"Digit0",
+  "_":"Minus","+":"Equal","{":"BracketLeft","}":"BracketRight","|":"Backslash",
+  ":":"Semicolon","\"":"Quote","<":"Comma",">":"Period","?":"Slash"
+};
+const NAMED = {
+  "arrowleft":"ArrowLeft","left":"ArrowLeft","←":"ArrowLeft",
+  "arrowright":"ArrowRight","right":"ArrowRight","→":"ArrowRight",
+  "arrowup":"ArrowUp","up":"ArrowUp","↑":"ArrowUp",
+  "arrowdown":"ArrowDown","down":"ArrowDown","↓":"ArrowDown",
+  "enter":"Enter","return":"Enter","⏎":"Enter","↩":"Enter",
+  "tab":"Tab","⇥":"Tab","space":"Space","spacebar":"Space",
+  "esc":"Escape","escape":"Escape","backspace":"Backspace","delete":"Backspace","⌫":"Backspace",
+  "`":"Backquote","[":"BracketLeft","]":"BracketRight",";":"Semicolon","'":"Quote",
+  ",":"Comma",".":"Period","/":"Slash","\\":"Backslash","-":"Minus","=":"Equal"
+};
+
+function keyToCode(tok) {
+  if (/^[a-zA-Z]$/.test(tok)) return { code: "Key" + tok.toUpperCase(), shift: false };
+  if (/^[0-9]$/.test(tok))    return { code: "Digit" + tok, shift: false };
+  if (/^[fF]([1-9]|1[0-2])$/.test(tok)) return { code: "F" + tok.slice(1), shift: false };
+  if (SHIFTED[tok])           return { code: SHIFTED[tok], shift: true };
+  const low = tok.toLowerCase();
+  if (NAMED[tok])  return { code: NAMED[tok],  shift: false };
+  if (NAMED[low])  return { code: NAMED[low],  shift: false };
+  return { code: null, shift: false };
+}
+
+function parseChord(str) {
+  const parts = str.split("+").map(s => s.trim()).filter(Boolean);
+  let ctrl = false, meta = false, alt = false, shift = false, keyTok = null;
+  for (const p of parts) {
+    const l = p.toLowerCase();
+    if (l === "ctrl" || l === "control" || l === "^") ctrl = true;
+    else if (l === "cmd" || l === "command" || l === "meta" || l === "win" || l === "⌘") meta = true;
+    else if (l === "alt" || l === "option" || l === "opt" || l === "⌥") alt = true;
+    else if (l === "shift" || l === "⇧") shift = true;
+    else keyTok = p;
+  }
+  const { code, shift: implShift } = keyToCode(keyTok);
+  if (implShift) shift = true;
+  // For character-producing keys, also remember the character so we can match by
+  // e.key (layout-independent) as well as by physical e.code.
+  const char = (keyTok && keyTok.length === 1) ? keyTok : null;
+  return { ctrl, meta, alt, shift, code, keyTok, char };
+}
+
+function parseSequence(keys) { return keys.map(parseChord); }
+
+/* Pretty display helpers */
+function prettyKeyCap(tok) {
+  const m = { "space":"Space","enter":"⏎","return":"⏎","tab":"⇥","esc":"Esc","escape":"Esc",
+    "backspace":"⌫","delete":"⌫","←":"←","→":"→","↑":"↑","↓":"↓",
+    "arrowleft":"←","arrowright":"→","arrowup":"↑","arrowdown":"↓" };
+  const l = tok.toLowerCase();
+  if (m[l]) return m[l];
+  if (/^[a-z]$/.test(l)) return tok.toUpperCase();
+  return tok;
+}
+function modSymbols(c) {
+  let s = "";
+  if (c.ctrl) s += "⌃";
+  if (c.alt)  s += "⌥";
+  if (c.shift && !SHIFTED[c.keyTok]) s += "⇧"; // symbol already implies shift
+  if (c.meta) s += "⌘";
+  return s;
+}
+function chordCapHTML(c) {
+  const mods = modSymbols(c);
+  return `<span class="keycap">${mods}${prettyKeyCap(c.keyTok)}</span>`;
+}
+function seqChipsHTML(seq) {
+  return seq.map((c, i) =>
+    (i > 0 ? `<span class="then">then</span>` : "") + chordCapHTML(c)
+  ).join("");
+}
+const KEYWORD = { "←":"Left Arrow","→":"Right Arrow","↑":"Up Arrow","↓":"Down Arrow",
+  "arrowleft":"Left Arrow","arrowright":"Right Arrow","arrowup":"Up Arrow","arrowdown":"Down Arrow",
+  "space":"Space","enter":"Enter","return":"Enter","tab":"Tab","esc":"Esc","escape":"Esc",
+  "backspace":"Delete","`":"Backtick","\\":"Backslash" };
+function chordWords(c) {
+  const parts = [];
+  if (c.ctrl) parts.push("Control");
+  if (c.alt)  parts.push("Option");
+  if (c.shift && !SHIFTED[c.keyTok]) parts.push("Shift");
+  if (c.meta) parts.push("Command");
+  const l = c.keyTok.toLowerCase();
+  parts.push(KEYWORD[c.keyTok] || KEYWORD[l] || (/^[a-z]$/.test(l) ? c.keyTok.toUpperCase() : c.keyTok));
+  return parts.join(" + ");
+}
+function seqWords(seq) { return seq.map(chordWords).join(",  then  "); }
+
+/* ============================ Matching ============================ */
+function eventChord(e) {
+  return { ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey, shift: e.shiftKey, code: e.code, key: e.key };
+}
+// The key identity matches if EITHER the physical key (e.code) OR the produced
+// character (e.key) lines up — so it works across keyboard layouts.
+function keyIdMatches(actual, expected) {
+  if (actual.code === expected.code) return true;
+  if (expected.char && actual.key && actual.key.length === 1 &&
+      actual.key.toLowerCase() === expected.char.toLowerCase()) return true;
+  return false;
+}
+function chordMatches(actual, expected, ignoreCtrl) {
+  return keyIdMatches(actual, expected) &&
+         (ignoreCtrl || actual.ctrl === !!expected.ctrl) &&
+         actual.meta === !!expected.meta &&
+         actual.alt  === !!expected.alt  &&
+         actual.shift === !!expected.shift;
+}
+function isModifierEvent(e) {
+  return ["ShiftLeft","ShiftRight","ControlLeft","ControlRight","AltLeft","AltRight",
+          "MetaLeft","MetaRight","CapsLock","OSLeft","OSRight"].includes(e.code) ||
+         ["Shift","Control","Alt","Meta","CapsLock"].includes(e.key);
+}
+
+/* ============================ Game state ============================ */
+const COOLDOWN_MS = 60 * 1000;
+const ROUND_MS = 5000;
+const CELEBRATE_MS = 1000;
+
+let uid = 0;
+const games = {};   // per-app state
+let currentApp = "tmux";
+let roundTimer = null;
+let cooldownTimer = null;
+let celebrateTimer = null;
+
+function buildGame(appKey) {
+  const app = RAW[appKey];
+  return {
+    appKey,
+    status: "idle", // idle | running | reveal | celebrate | cooldownwait | mastered
+    shortcuts: app.shortcuts.map(s => ({
+      id: ++uid,
+      name: s.name,
+      seq: parseSequence(s.keys),
+      correctCount: 0,
+      cooldownUntil: 0
+    })),
+    current: null,
+    seqIndex: 0,
+    roundStart: 0,
+    elapsedAtPause: 0,
+    lastShownId: null,
+    solvedThisSession: 0
+  };
+}
+for (const k of Object.keys(RAW)) games[k] = buildGame(k);
+
+function g() { return games[currentApp]; }
+
+/* ============================ Round flow ============================ */
+function clearTimers() {
+  if (roundTimer) { clearInterval(roundTimer); roundTimer = null; }
+  if (cooldownTimer) { clearInterval(cooldownTimer); cooldownTimer = null; }
+  if (celebrateTimer) { clearTimeout(celebrateTimer); celebrateTimer = null; }
+}
+
+function startGame() {
+  ensureAudio();
+  const s = g();
+  clearTimers();
+  s.status = "running";
+  nextRound();
+}
+
+function eligiblePool(s, now) {
+  return s.shortcuts.filter(x => x.correctCount < 2 && x.cooldownUntil <= now);
+}
+
+function nextRound() {
+  const s = g();
+  clearTimers();
+  const now = Date.now();
+  const remaining = s.shortcuts.filter(x => x.correctCount < 2);
+
+  if (remaining.length === 0) {
+    s.status = "mastered";
+    render();
+    return;
+  }
+
+  let pool = eligiblePool(s, now);
+  if (pool.length === 0) {
+    // all remaining are cooling down — wait for the soonest to free up
+    s.status = "cooldownwait";
+    render();
+    cooldownTimer = setInterval(() => {
+      if (g() !== s || s.status !== "cooldownwait") { clearInterval(cooldownTimer); cooldownTimer = null; return; }
+      if (eligiblePool(s, Date.now()).length > 0) { s.status = "running"; nextRound(); }
+      else render();
+    }, 250);
+    return;
+  }
+
+  // avoid immediately repeating the same prompt when possible
+  let choices = pool;
+  if (pool.length > 1 && s.lastShownId != null) {
+    const filtered = pool.filter(x => x.id !== s.lastShownId);
+    if (filtered.length) choices = filtered;
+  }
+  const pick = choices[Math.floor(Math.random() * choices.length)];
+
+  s.current = pick;
+  s.lastShownId = pick.id;
+  s.seqIndex = 0;
+  s.status = "running";
+  s.roundStart = Date.now();
+  s.elapsedAtPause = 0;
+  render();
+  roundTimer = setInterval(tick, 50);
+}
+
+function tick() {
+  const s = g();
+  if (s.status !== "running") return;
+  const elapsed = Date.now() - s.roundStart;
+  const remaining = Math.max(0, ROUND_MS - elapsed);
+  updateTimerBar(remaining / ROUND_MS, remaining);
+  if (remaining <= 0) onTimeout();
+}
+
+function onTimeout() {
+  const s = g();
+  clearTimers();
+  s.status = "reveal";
+  s.seqIndex = 0;
+  playReveal();
+  render();
+}
+
+function handleCorrect() {
+  const s = g();
+  clearTimers();
+  const cur = s.current;
+  cur.correctCount += 1;
+  if (cur.correctCount >= 2) {
+    // retired for the rest of the session
+    s.solvedThisSession += 1;
+  } else {
+    cur.cooldownUntil = Date.now() + COOLDOWN_MS;
+  }
+  s.status = "celebrate";
+  playCorrect();
+  launchConfetti(CELEBRATE_MS);
+  render();
+  celebrateTimer = setTimeout(() => {
+    celebrateTimer = null;
+    if (g() === s && s.status === "celebrate") nextRound();
+  }, CELEBRATE_MS);
+}
+
+function handleRevealComplete() {
+  const s = g();
+  // did NOT count as a correct answer — stays in rotation
+  playReveal();
+  nextRound();
+}
+
+/* ============================ Key handling ============================ */
+window.addEventListener("keydown", (e) => {
+  const s = g();
+  const active = (s.status === "running" || s.status === "reveal");
+  if (!active) return;
+
+  if (isModifierEvent(e)) { e.preventDefault(); return; }
+  e.preventDefault();
+  if (e.repeat) return;
+
+  const actual = eventChord(e);
+  const seq = s.current.seq;
+  const expected = seq[s.seqIndex];
+
+  // After the first chord (e.g. a tmux prefix), be forgiving of a lingering Ctrl —
+  // people don't always release the prefix cleanly before the next key.
+  const isTrailing = s.seqIndex > 0;
+
+  if (chordMatches(actual, expected, isTrailing)) {
+    s.seqIndex += 1;
+    if (s.seqIndex >= seq.length) {
+      if (s.status === "running") handleCorrect();
+      else handleRevealComplete();
+    } else {
+      render(); // show progress in a multi-chord sequence
+    }
+    return;
+  }
+
+  // mismatch — but maybe they just restarted a multi-chord sequence
+  if (s.seqIndex > 0 && chordMatches(actual, seq[0])) {
+    s.seqIndex = 1;
+    render();
+    return;
+  }
+
+  // genuine wrong key
+  s.seqIndex = 0;
+  playWrong();
+  shake();
+});
+
+/* ============================ Controls ============================ */
+function pauseGame() {
+  const s = g();
+  if (s.status === "running") {
+    s.elapsedAtPause = Date.now() - s.roundStart;
+    clearTimers();
+    s.status = "paused_running";
+  } else if (s.status === "reveal") {
+    clearTimers();
+    s.status = "paused_reveal";
+  } else if (s.status === "cooldownwait") {
+    clearTimers();
+    s.status = "paused_cooldown";
+  }
+  render();
+}
+function resumeGame() {
+  const s = g();
+  if (s.status === "paused_running") {
+    s.status = "running";
+    s.roundStart = Date.now() - s.elapsedAtPause;
+    roundTimer = setInterval(tick, 50);
+  } else if (s.status === "paused_reveal") {
+    s.status = "reveal";
+  } else if (s.status === "paused_cooldown") {
+    s.status = "running";
+    nextRound();
+    return;
+  }
+  render();
+}
+function stopGame() {
+  const s = g();
+  clearTimers();
+  s.status = "idle";
+  s.current = null;
+  render();
+}
+function resetApp() {
+  clearTimers();
+  games[currentApp] = buildGame(currentApp);
+  startGame();
+}
+function switchApp(key) {
+  if (key === currentApp) return;
+  // auto-pause whatever was running in the current app
+  const s = g();
+  if (s.status === "running") pauseGame();
+  else if (s.status === "reveal") pauseGame();
+  else if (s.status === "cooldownwait") pauseGame();
+  else clearTimers();
+  currentApp = key;
+  render();
+}
+
+const PAUSED_STATES = ["paused_running", "paused_reveal", "paused_cooldown"];
+
+/* ============================ Rendering ============================ */
+const stageEl = document.getElementById("stage");
+const controlsEl = document.getElementById("controls");
+const statsEl = document.getElementById("stats");
+const tabsEl = document.getElementById("tabs");
+const cardEl = document.getElementById("card");
+
+function renderTabs() {
+  tabsEl.innerHTML = "";
+  for (const key of Object.keys(RAW)) {
+    const b = document.createElement("button");
+    b.className = "tab" + (key === currentApp ? " active" : "");
+    b.textContent = RAW[key].label;
+    b.onclick = () => switchApp(key);
+    tabsEl.appendChild(b);
+  }
+}
+
+function updateTimerBar(frac, ms) {
+  const bar = document.getElementById("tbar");
+  const num = document.getElementById("tnum");
+  if (!bar) return;
+  bar.style.width = (frac * 100).toFixed(1) + "%";
+  bar.style.background = frac > 0.5 ? "var(--good)" : frac > 0.25 ? "var(--warn)" : "var(--bad)";
+  if (num) num.textContent = (ms / 1000).toFixed(1) + "s";
+}
+
+function render() {
+  renderTabs();
+  const s = g();
+  const app = RAW[currentApp];
+  stageEl.innerHTML = "";
+  controlsEl.innerHTML = "";
+
+  // ---- Stage ----
+  if (s.status === "idle") {
+    stageEl.innerHTML = `
+      <div class="big-emoji">🎯</div>
+      <div class="prompt">Practice ${app.label} shortcuts</div>
+      <div class="hint">${app.blurb}</div>
+      <div class="hint">You get <b>5 seconds</b> per prompt. Nail it twice and it's retired for the session.
+      Miss it and you'll type the answer to move on — then it comes back around.</div>
+    `;
+  }
+  else if (s.status === "running") {
+    stageEl.innerHTML = `
+      <div class="label">${app.label} · what's the shortcut for…</div>
+      <div class="prompt">${s.current.name}</div>
+      ${s.current.seq.length > 1 ? `<div class="hint">Multi-key shortcut — press each part in order, releasing keys between parts.<br/>${progressHint(s)}</div>` : ``}
+      <div class="timerwrap">
+        <div class="timerbar-bg"><div class="timerbar" id="tbar"></div></div>
+        <div class="timernum" id="tnum">5.0s</div>
+      </div>
+    `;
+    const elapsed = Date.now() - s.roundStart;
+    const remaining = Math.max(0, ROUND_MS - elapsed);
+    updateTimerBar(remaining / ROUND_MS, remaining);
+  }
+  else if (s.status === "reveal") {
+    stageEl.innerHTML = `
+      <div class="reveal-title">⏱ TIME'S UP — here's the shortcut</div>
+      <div class="prompt" style="font-size:22px">${s.current.name}</div>
+      <div class="chips">${seqChipsHTML(s.current.seq)}</div>
+      <div class="words">${seqWords(s.current.seq)}</div>
+      <div class="hint">Type it to dismiss and continue.${s.current.seq.length > 1 ? ` Release keys between parts.<br/>${progressHint(s)}` : ``}</div>
+    `;
+  }
+  else if (s.status === "celebrate") {
+    const cur = s.current;
+    const retired = cur.correctCount >= 2;
+    stageEl.innerHTML = `
+      <div class="big-emoji">${retired ? "🏆" : "✅"}</div>
+      <div class="prompt" style="font-size:24px">${retired ? "Mastered! Retired for this session." : "Correct!"}</div>
+      <div class="chips">${seqChipsHTML(cur.seq)}</div>
+      <div class="hint">${retired ? "Nice — you got it twice." : "Got it once — it'll return in a minute for round two."}</div>
+    `;
+  }
+  else if (s.status === "cooldownwait") {
+    const now = Date.now();
+    const soon = s.shortcuts.filter(x => x.correctCount < 2)
+                            .reduce((m, x) => Math.min(m, x.cooldownUntil), Infinity);
+    const secs = Math.max(0, Math.ceil((soon - now) / 1000));
+    stageEl.innerHTML = `
+      <div class="big-emoji">🔥</div>
+      <div class="prompt" style="font-size:24px">Great pace!</div>
+      <div class="hint">Every remaining shortcut is on its 1-minute cooldown so you can focus on new ones.<br/>
+      Next one is ready in <b>${secs}s</b>…</div>
+    `;
+  }
+  else if (s.status === "mastered") {
+    stageEl.innerHTML = `
+      <div class="big-emoji">🎉</div>
+      <div class="prompt">All ${s.shortcuts.length} ${app.label} shortcuts mastered!</div>
+      <div class="hint">You got every one right twice. Reset to run through them again, or switch tabs.</div>
+    `;
+  }
+  else if (PAUSED_STATES.includes(s.status)) {
+    stageEl.innerHTML = `
+      <div class="big-emoji">⏸</div>
+      <div class="prompt" style="font-size:24px">Paused</div>
+      <div class="hint">Press Resume to keep going.</div>
+    `;
+  }
+
+  // ---- Controls ----
+  if (s.status === "idle") {
+    addBtn("Start", "start", startGame);
+  } else if (s.status === "mastered") {
+    addBtn("Play again", "start", resetApp);
+    addBtn("Stop", "stop", stopGame);
+  } else if (PAUSED_STATES.includes(s.status)) {
+    addBtn("Resume", "start", resumeGame);
+    addBtn("Stop", "stop", stopGame);
+  } else {
+    // running / reveal / celebrate / cooldownwait
+    addBtn("Pause", "pause", pauseGame, null, s.status === "celebrate");
+    addBtn("Stop", "stop", stopGame);
+  }
+
+  // ---- Stats ----
+  renderStats(s);
+}
+
+function progressHint(s) {
+  const n = s.current.seq.length;
+  const done = s.seqIndex;
+  const dots = Array.from({length: n}, (_, i) => i < done ? "●" : "○").join(" ");
+  return `sequence: ${dots} (${done}/${n})`;
+}
+
+function addBtn(label, cls, fn, aria, disabled) {
+  const b = document.createElement("button");
+  b.className = "btn " + cls;
+  b.textContent = aria || label.replace("${app}", RAW[currentApp].label);
+  if (disabled) b.disabled = true;
+  b.onclick = fn;
+  controlsEl.appendChild(b);
+}
+
+function renderStats(s) {
+  const total = s.shortcuts.length;
+  const retired = s.shortcuts.filter(x => x.correctCount >= 2).length;
+  const oncE = s.shortcuts.filter(x => x.correctCount === 1).length;
+  const remaining = total - retired;
+  statsEl.innerHTML = `
+    <div class="stat"><b>${remaining}</b>in rotation</div>
+    <div class="stat"><b>${oncE}</b>got once</div>
+    <div class="stat"><b>${retired}</b>mastered</div>
+    <div class="stat"><b>${total}</b>total</div>
+  `;
+}
+
+function shake() {
+  cardEl.classList.remove("pulse-bad");
+  void cardEl.offsetWidth;
+  cardEl.classList.add("pulse-bad");
+}
+
+/* ============================ Audio ============================ */
+let actx = null;
+function ensureAudio() {
+  if (!actx) {
+    try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { return; }
+  }
+  if (actx.state === "suspended") actx.resume();
+}
+function tone(freq, startAt, dur, type = "sine", vol = 0.2) {
+  if (!actx) return;
+  const t0 = actx.currentTime + startAt;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(actx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+function playCorrect() {
+  ensureAudio();
+  // happy ascending arpeggio
+  tone(523.25, 0.00, 0.14, "triangle", 0.22); // C5
+  tone(659.25, 0.09, 0.14, "triangle", 0.22); // E5
+  tone(783.99, 0.18, 0.18, "triangle", 0.24); // G5
+  tone(1046.5, 0.28, 0.24, "triangle", 0.24); // C6
+}
+function playWrong() {
+  ensureAudio();
+  tone(160, 0.00, 0.18, "square", 0.18);
+  tone(120, 0.10, 0.20, "square", 0.16);
+}
+function playReveal() {
+  ensureAudio();
+  tone(440, 0.0, 0.12, "sine", 0.15);
+}
+
+/* ============================ Confetti ============================ */
+const confettiCanvas = document.getElementById("confetti");
+const cctx = confettiCanvas.getContext("2d");
+let confettiParticles = [];
+let confettiRAF = null;
+let confettiEnd = 0;
+
+function sizeConfetti() {
+  const dpr = window.devicePixelRatio || 1;
+  confettiCanvas.width = window.innerWidth * dpr;
+  confettiCanvas.height = window.innerHeight * dpr;
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", sizeConfetti);
+sizeConfetti();
+
+function launchConfetti(durationMs) {
+  const colors = ["#6ea8fe", "#37d67a", "#ffcf5c", "#ff6b6b", "#c084fc", "#4dd0e1"];
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight * 0.32;
+  for (let i = 0; i < 140; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 9;
+    confettiParticles.push({
+      x: cx + (Math.random() - 0.5) * 120,
+      y: cy + (Math.random() - 0.5) * 40,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 4,
+      size: 5 + Math.random() * 7,
+      color: colors[(Math.random() * colors.length) | 0],
+      rot: Math.random() * Math.PI,
+      vrot: (Math.random() - 0.5) * 0.4,
+      life: 1
+    });
+  }
+  confettiEnd = performance.now() + durationMs;
+  if (!confettiRAF) confettiRAF = requestAnimationFrame(drawConfetti);
+}
+
+function drawConfetti(now) {
+  cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  const gravity = 0.32;
+  confettiParticles.forEach(p => {
+    p.vy += gravity;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.99;
+    p.rot += p.vrot;
+    if (now > confettiEnd) p.life -= 0.08;
+    cctx.save();
+    cctx.globalAlpha = Math.max(0, p.life);
+    cctx.translate(p.x, p.y);
+    cctx.rotate(p.rot);
+    cctx.fillStyle = p.color;
+    cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+    cctx.restore();
+  });
+  confettiParticles = confettiParticles.filter(p => p.life > 0 && p.y < window.innerHeight + 40);
+  if (confettiParticles.length > 0) {
+    confettiRAF = requestAnimationFrame(drawConfetti);
+  } else {
+    cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    confettiRAF = null;
+  }
+}
+
+/* ============================ Boot ============================ */
+render();
+</script>
+</body>
+</html>
