@@ -150,6 +150,30 @@
   }
   .pulse-bad { animation: shake .3s; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+  .shortlist { width: 100%; max-width: 720px; margin-top: 16px; background: var(--card); border: 1px solid #2a3150; border-radius: 16px; padding: 14px 18px; }
+  .shortlist-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .shortlist-head .title { font-size: 13px; color: var(--muted); }
+  .shortlist-head .title b { color: var(--text); }
+  .bulk { display: flex; gap: 8px; }
+  .bulk button { background: var(--card2); color: var(--text); border: 1px solid #3a446e; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .bulk button:hover { border-color: var(--accent); }
+  .srows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  @media (max-width: 560px) { .srows { grid-template-columns: 1fr; } }
+  .srow { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid #23293f; min-width: 0; }
+  .srow label { display: flex; align-items: center; gap: 9px; cursor: pointer; flex: 1 1 auto; min-width: 0; }
+  .srow input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex: none; }
+  .srow .sname { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .srow .skeys { font-size: 12.5px; color: var(--muted); font-weight: 700; white-space: nowrap; flex: none; }
+  .srow.off { opacity: .45; }
+  .srow.off .sname { text-decoration: line-through; }
+  .srow.mastered .skeys { color: var(--good); }
+  .badge { font-size: 9.5px; text-transform: uppercase; letter-spacing: .5px; padding: 2px 6px; border-radius: 6px; flex: none; font-weight: 700; }
+  .badge.b-off { background: #2b3350; color: var(--muted); }
+  .badge.b-master { background: rgba(55,214,122,.16); color: var(--good); }
+  .badge.b-once { background: rgba(255,207,92,.16); color: var(--warn); }
+  .badge.b-cool { background: rgba(110,168,254,.16); color: var(--accent); }
+  .shortlist-foot { margin-top: 10px; font-size: 11px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -165,6 +189,8 @@
     <div class="controls" id="controls"></div>
     <div class="stats" id="stats"></div>
   </div>
+
+  <div class="shortlist" id="shortlist"></div>
 
   <div class="note">
     <b>Heads-up on browser-reserved keys:</b> A few combos are grabbed by your browser/OS before the page sees them
@@ -444,7 +470,8 @@ function buildGame(appKey) {
       name: s.name,
       seq: parseSequence(s.keys),
       correctCount: 0,
-      cooldownUntil: 0
+      cooldownUntil: 0,
+      enabled: true
     })),
     current: null,
     seqIndex: 0,
@@ -474,15 +501,21 @@ function startGame() {
 }
 
 function eligiblePool(s, now) {
-  return s.shortcuts.filter(x => x.correctCount < 2 && x.cooldownUntil <= now);
+  return s.shortcuts.filter(x => x.enabled && x.correctCount < 2 && x.cooldownUntil <= now);
 }
 
 function nextRound() {
   const s = g();
   clearTimers();
   const now = Date.now();
-  const remaining = s.shortcuts.filter(x => x.correctCount < 2);
+  const activePool = s.shortcuts.filter(x => x.enabled);
+  const remaining = activePool.filter(x => x.correctCount < 2);
 
+  if (activePool.length === 0) {
+    s.status = "empty";
+    render();
+    return;
+  }
   if (remaining.length === 0) {
     s.status = "mastered";
     render();
@@ -627,6 +660,11 @@ function pauseGame() {
 function resumeGame() {
   const s = g();
   if (s.status === "paused_running") {
+    if (!s.current || !s.current.enabled || s.current.correctCount >= 2) {
+      s.status = "running";
+      nextRound();
+      return;
+    }
     s.status = "running";
     s.roundStart = Date.now() - s.elapsedAtPause;
     roundTimer = setInterval(tick, 50);
@@ -671,6 +709,7 @@ const controlsEl = document.getElementById("controls");
 const statsEl = document.getElementById("stats");
 const tabsEl = document.getElementById("tabs");
 const cardEl = document.getElementById("card");
+const shortlistEl = document.getElementById("shortlist");
 
 function renderTabs() {
   tabsEl.innerHTML = "";
@@ -744,7 +783,7 @@ function render() {
   }
   else if (s.status === "cooldownwait") {
     const now = Date.now();
-    const soon = s.shortcuts.filter(x => x.correctCount < 2)
+    const soon = s.shortcuts.filter(x => x.correctCount < 2 && x.enabled)
                             .reduce((m, x) => Math.min(m, x.cooldownUntil), Infinity);
     const secs = Math.max(0, Math.ceil((soon - now) / 1000));
     stageEl.innerHTML = `
@@ -757,8 +796,15 @@ function render() {
   else if (s.status === "mastered") {
     stageEl.innerHTML = `
       <div class="big-emoji">🎉</div>
-      <div class="prompt">All ${s.shortcuts.length} ${app.label} shortcuts mastered!</div>
-      <div class="hint">You got every one right twice. Reset to run through them again, or switch tabs.</div>
+      <div class="prompt">All active ${app.label} shortcuts mastered!</div>
+      <div class="hint">Every shortcut checked below has been aced twice. Check more in the list, reset, or switch tabs.</div>
+    `;
+  }
+  else if (s.status === "empty") {
+    stageEl.innerHTML = `
+      <div class="big-emoji">☑️</div>
+      <div class="prompt" style="font-size:24px">No shortcuts selected</div>
+      <div class="hint">Re-check some boxes in the list below to add them back to the practice cycle.</div>
     `;
   }
   else if (PAUSED_STATES.includes(s.status)) {
@@ -775,6 +821,8 @@ function render() {
   } else if (s.status === "mastered") {
     addBtn("Play again", "start", resetApp);
     addBtn("Stop", "stop", stopGame);
+  } else if (s.status === "empty") {
+    addBtn("Stop", "stop", stopGame);
   } else if (PAUSED_STATES.includes(s.status)) {
     addBtn("Resume", "start", resumeGame);
     addBtn("Stop", "stop", stopGame);
@@ -786,6 +834,9 @@ function render() {
 
   // ---- Stats ----
   renderStats(s);
+
+  // ---- Shortcut checklist (below the card) ----
+  renderShortList();
 }
 
 function progressHint(s) {
@@ -805,16 +856,110 @@ function addBtn(label, cls, fn, aria, disabled) {
 }
 
 function renderStats(s) {
-  const total = s.shortcuts.length;
   const retired = s.shortcuts.filter(x => x.correctCount >= 2).length;
-  const oncE = s.shortcuts.filter(x => x.correctCount === 1).length;
-  const remaining = total - retired;
+  const once = s.shortcuts.filter(x => x.correctCount === 1).length;
+  const off = s.shortcuts.filter(x => !x.enabled).length;
+  const inRotation = s.shortcuts.filter(x => x.enabled && x.correctCount < 2).length;
   statsEl.innerHTML = `
-    <div class="stat"><b>${remaining}</b>in rotation</div>
-    <div class="stat"><b>${oncE}</b>got once</div>
+    <div class="stat"><b>${inRotation}</b>in rotation</div>
+    <div class="stat"><b>${once}</b>got once</div>
     <div class="stat"><b>${retired}</b>mastered</div>
-    <div class="stat"><b>${total}</b>total</div>
+    <div class="stat"><b>${off}</b>off</div>
   `;
+}
+
+/* ---- Shortcut checklist below the card ---- */
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+}
+function seqCompact(seq) {
+  return seq.map(c => modSymbols(c) + prettyKeyCap(c.keyTok)).join(" › ");
+}
+
+let lastShortListSig = null;
+function shortListSignature(s) {
+  return currentApp + "|" + s.shortcuts
+    .map(x => (x.enabled ? "1" : "0") + Math.min(x.correctCount, 2))
+    .join(",");
+}
+function renderShortList() {
+  const s = g();
+  const sig = shortListSignature(s);
+  if (sig === lastShortListSig) return;   // nothing visible changed — avoid rebuild churn
+  lastShortListSig = sig;
+
+  const activeCount = s.shortcuts.filter(x => x.enabled).length;
+  const rows = s.shortcuts.map(sc => {
+    const off = !sc.enabled;
+    const mastered = sc.correctCount >= 2;
+    let badge;
+    if (off) badge = `<span class="badge b-off">off</span>`;
+    else if (mastered) badge = `<span class="badge b-master">mastered</span>`;
+    else if (sc.correctCount === 1) badge = `<span class="badge b-once">1 / 2</span>`;
+    else badge = `<span class="badge b-cool">in cycle</span>`;
+    return `<li class="srow${off ? " off" : ""}${mastered ? " mastered" : ""}">
+        <label>
+          <input type="checkbox" data-id="${sc.id}"${sc.enabled ? " checked" : ""}>
+          <span class="sname" title="${escapeHtml(sc.name)}">${escapeHtml(sc.name)}</span>
+        </label>
+        <span class="skeys">${escapeHtml(seqCompact(sc.seq))}</span>
+        ${badge}
+      </li>`;
+  }).join("");
+
+  shortlistEl.innerHTML = `
+    <div class="shortlist-head">
+      <span class="title">${escapeHtml(RAW[currentApp].label)} — <b>${activeCount}</b> of ${s.shortcuts.length} shortcuts active this session</span>
+      <span class="bulk">
+        <button type="button" data-all="1">Check all</button>
+        <button type="button" data-all="0">Uncheck all</button>
+      </span>
+    </div>
+    <ul class="srows">${rows}</ul>
+    <div class="shortlist-foot">Toggle any box at any time — even mid-game — to add or remove a shortcut from the practice cycle.</div>
+  `;
+
+  shortlistEl.querySelectorAll("input[type=checkbox]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const id = parseInt(cb.getAttribute("data-id"), 10);
+      const enabled = cb.checked;
+      cb.blur();
+      toggleShortcut(id, enabled);
+    });
+  });
+  shortlistEl.querySelectorAll(".bulk button").forEach(b => {
+    b.addEventListener("click", () => { b.blur(); bulkSetAll(b.getAttribute("data-all") === "1"); });
+  });
+}
+
+function toggleShortcut(id, enabled) {
+  const s = g();
+  const sc = s.shortcuts.find(x => x.id === id);
+  if (!sc) return;
+  sc.enabled = enabled;
+
+  const activeRound = (s.status === "running" || s.status === "reveal");
+  if (!enabled && activeRound && s.current && s.current.id === id) {
+    nextRound();                 // removed the one currently on screen — move on
+    return;
+  }
+  if (["cooldownwait", "mastered", "empty"].includes(s.status)) {
+    nextRound();                 // a box changed — maybe we can present a round now
+    return;
+  }
+  render();                      // otherwise just refresh the list + stats
+}
+
+function bulkSetAll(enabled) {
+  const s = g();
+  s.shortcuts.forEach(x => x.enabled = enabled);
+  if (!enabled && ["running", "reveal", "cooldownwait", "mastered"].includes(s.status)) {
+    nextRound(); return;
+  }
+  if (enabled && ["cooldownwait", "mastered", "empty"].includes(s.status)) {
+    nextRound(); return;
+  }
+  render();
 }
 
 function shake() {
