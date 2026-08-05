@@ -197,6 +197,8 @@
     (e.g. <kbd>⌘T</kbd> new tab, <kbd>⌘N</kbd> new window, <kbd>⌘⇧]</kbd>/<kbd>⌘⇧[</kbd> and <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch browser tabs).
     They may still open/switch a browser tab. <kbd>⌘W</kbd> and <kbd>⌘Q</kbd> are intentionally excluded so you never lose the game.
     Everything else is suppressed by the trainer. For the smoothest run, use this in a dedicated browser window.
+    If a prompt turns out to be un-typeable here, hit <b>Disable and Skip</b> — it unchecks that shortcut for the
+    session and jumps straight to the next prompt.
   </div>
 
 <script>
@@ -263,30 +265,19 @@ const RAW = {
     blurb: "macOS defaults (shared by Cursor). A few Cursor-only AI actions are marked.",
     shortcuts: [
       { name: "Command Palette",                         keys: ["Cmd+Shift+P"] },
-      { name: "Quick Open a file",                       keys: ["Cmd+P"] },
-      { name: "Toggle the integrated terminal",          keys: ["Ctrl+`"] },
       { name: "Toggle the sidebar",                      keys: ["Cmd+B"] },
-      { name: "Toggle the bottom panel",                 keys: ["Cmd+J"] },
       { name: "Find in current file",                    keys: ["Cmd+F"] },
       { name: "Replace in current file",                 keys: ["Cmd+Option+F"] },
       { name: "Find in all files",                       keys: ["Cmd+Shift+F"] },
       { name: "Toggle line comment",                     keys: ["Cmd+/"] },
-      { name: "Format the document",                     keys: ["Option+Shift+F"] },
       { name: "Go to line…",                             keys: ["Ctrl+G"] },
       { name: "Select next occurrence (add cursor)",     keys: ["Cmd+D"] },
-      { name: "Add a cursor on the line below",          keys: ["Cmd+Option+↓"] },
       { name: "Move the current line down",              keys: ["Option+↓"] },
       { name: "Move the current line up",                keys: ["Option+↑"] },
-      { name: "Copy the current line down",              keys: ["Option+Shift+↓"] },
       { name: "Delete the current line",                 keys: ["Cmd+Shift+K"] },
       { name: "Rename symbol",                           keys: ["F2"] },
-      { name: "Save",                                    keys: ["Cmd+S"] },
-      { name: "Open Settings (UI)",                      keys: ["Cmd+,"] },
-      { name: "Split the editor",                        keys: ["Cmd+\\"] },
-      { name: "Open Keyboard Shortcuts",                 keys: ["Cmd+K", "Cmd+S"] },
       { name: "Cursor: open the AI chat",                keys: ["Cmd+L"] },
       { name: "Cursor: inline edit / generate",          keys: ["Cmd+K"] },
-      { name: "Cursor: open Composer",                   keys: ["Cmd+I"] },
     ]
   },
 
@@ -684,6 +675,14 @@ function stopGame() {
   s.current = null;
   render();
 }
+/* For combos the OS/browser swallows before the page sees them: drop the shortcut
+   from this session's rotation and move straight on to the next prompt. */
+function disableAndSkip() {
+  const s = g();
+  if (!s.current) return;
+  s.current.enabled = false;
+  nextRound();
+}
 function resetApp() {
   clearTimers();
   games[currentApp] = buildGame(currentApp);
@@ -829,6 +828,9 @@ function render() {
   } else {
     // running / reveal / celebrate / cooldownwait
     addBtn("Pause", "pause", pauseGame, null, s.status === "celebrate");
+    if (s.status === "running" || s.status === "reveal") {
+      addBtn("Disable and Skip", "ghost", disableAndSkip);
+    }
     addBtn("Stop", "stop", stopGame);
   }
 
