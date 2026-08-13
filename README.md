@@ -9,17 +9,12 @@ Pick an app, hit **Start**, and race a 5-second clock to type the shortcut for t
 
 ## How it works
 
-The app has four tabs, each a separate practice session with its own shortcut set:
+The app is organized into tabs — one per app, each a separate practice session with its own
+shortcut set. Open `index.html` to see what's currently there; tmux, iTerm2, Cursor/VS Code, and
+Finder have been the mainstays.
 
-| Tab | Shortcuts |
-|---|---|
-| tmux | 13 |
-| iTerm2 | 17 |
-| Cursor / VS Code | 15 |
-| Finder | 26 |
-
-These four are just a starting point. Tabs aren't fixed — ask Claude Code (or your AI tool of choice)
-to add one for an app you use, or drop one you don't. See
+The tab list isn't fixed. Ask Claude Code (or your AI tool of choice) to add one for an app you use,
+or drop one you don't. See
 [Customizing the shortcut list](#customizing-the-shortcut-list-with-claude-code) below.
 
 ### The round loop
@@ -91,8 +86,8 @@ To try a change, edit `index.html` and reload the page.
 ## Customizing the shortcut list with Claude Code
 
 The shortcut data lives in a single `RAW` object near the top of the `<script>` block in
-`index.html`, keyed by app (`tmux`, `iterm`, `vscode`, `finder`). Everything else — the checklist,
-the stats, the rotation — derives from it, so adding or removing a shortcut is a one-place edit.
+`index.html`, keyed by app. Everything else — the tabs, the checklist, the stats, the rotation —
+derives from it, so adding or removing a shortcut, or a whole tab, is a one-place edit.
 
 There's a `CLAUDE.md` in the repo that explains the file's structure, so Claude Code already knows
 where things go. Run `claude` in the repo and ask in plain English.
