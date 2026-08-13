@@ -5,6 +5,8 @@ no server, no dependencies.
 
 Pick an app, hit **Start**, and race a 5-second clock to type the shortcut for the action on screen.
 
+![A round in progress: the Finder tab asking for "Go to the Applications folder", with the countdown bar partway through](example-screen-2.png)
+
 ---
 
 ## How it works
@@ -24,6 +26,10 @@ or drop one you don't. See
 3. **Wrong key** → beep, and the clock keeps running. Keep trying until time is up.
 4. **Time's up** → the answer is revealed. You have to actually *type* it to move on, but it does **not**
    count as correct — the shortcut stays in rotation.
+
+![The timeout reveal showing Command + C for "Copy the selected item", with the per-tab shortcut checklist below it](example-screen.png)
+
+*A missed round, and the per-tab checklist underneath it.*
 
 ### How shortcuts retire
 
