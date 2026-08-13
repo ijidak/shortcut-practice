@@ -18,6 +18,10 @@ The app has four tabs, each a separate practice session with its own shortcut se
 | Cursor / VS Code | 15 |
 | Finder | 26 |
 
+These four are just a starting point. Tabs aren't fixed — ask Claude Code (or your AI tool of choice)
+to add one for an app you use, or drop one you don't. See
+[Customizing the shortcut list](#customizing-the-shortcut-list-with-claude-code) below.
+
 ### The round loop
 
 1. A command name appears — e.g. *"Split pane left / right (vertical)"* — and a 5-second timer starts.
@@ -71,11 +75,9 @@ release the prefix cleanly.
 
 ## Getting started
 
-Clone it and open the file. That's the whole setup.
+Clone the repo and open the file. That's the whole setup.
 
 ```bash
-git clone https://github.com/ijidak/shortcut-practice.git
-cd shortcut-practice
 open index.html
 ```
 
@@ -110,6 +112,14 @@ where things go. Run `claude` in the repo and ask in plain English.
 > Drop all the tmux copy-mode shortcuts. I don't use them.
 
 > The Finder tab has too many. Trim it down to the 15 I'd actually use day to day.
+
+### Adding and removing tabs
+
+> Add a tab for Chrome DevTools shortcuts.
+
+> Add a Vim tab with the normal-mode motions I should have memorized by now.
+
+> Remove the Finder tab. I don't practice those.
 
 ### Reshaping a whole tab
 
