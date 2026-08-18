@@ -121,6 +121,11 @@
   .btn.pause { background: var(--warn); }
   .btn.stop  { background: var(--bad); color: #1a0808; }
   .btn.ghost { background: var(--card2); color: var(--text); border: 1px solid #3a446e; }
+  .btn .btnkey {
+    margin-left: 8px; padding: 1px 6px; border-radius: 5px;
+    font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+    background: #11152a; border: 1px solid #3a446e; color: var(--muted);
+  }
 
   .stats { display: flex; gap: 22px; justify-content: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
   .stats b { color: var(--text); font-size: 15px; display: block; }
@@ -197,8 +202,8 @@
     (e.g. <kbd>⌘T</kbd> new tab, <kbd>⌘N</kbd> new window, <kbd>⌘⇧]</kbd>/<kbd>⌘⇧[</kbd> and <kbd>⌘1</kbd>–<kbd>⌘9</kbd> switch browser tabs).
     They may still open/switch a browser tab. <kbd>⌘W</kbd> and <kbd>⌘Q</kbd> are intentionally excluded so you never lose the game.
     Everything else is suppressed by the trainer. For the smoothest run, use this in a dedicated browser window.
-    If a prompt turns out to be un-typeable here, hit <b>Disable and Skip</b> — it unchecks that shortcut for the
-    session and jumps straight to the next prompt.
+    If a prompt turns out to be un-typeable here, hit <b>Disable and Skip</b> (or press <kbd>⌃⇧X</kbd>) — it unchecks
+    that shortcut for the session and jumps straight to the next prompt.
   </div>
 
 <script>
@@ -641,6 +646,13 @@ function handleRevealComplete() {
 }
 
 /* ============================ Key handling ============================ */
+/* Keyboard equivalent of the Disable and Skip button. Deliberately picked so it can never
+   collide with a prompt: no Ctrl+Shift chord appears anywhere in RAW, and no tab pairs X
+   with Ctrl — so a stray press can't be a real answer, and a fumbled answer can't skip. */
+const SKIP_KEYS = "Ctrl+Shift+X";
+const SKIP_CHORD = parseChord(SKIP_KEYS);
+const SKIP_CAP = modSymbols(SKIP_CHORD) + prettyKeyCap(SKIP_CHORD.keyTok);
+
 window.addEventListener("keydown", (e) => {
   const s = g();
   const active = (s.status === "running" || s.status === "reveal");
@@ -651,6 +663,10 @@ window.addEventListener("keydown", (e) => {
   if (e.repeat) return;
 
   const actual = eventChord(e);
+
+  // Skip shortcut first, so it is never scored as an answer.
+  if (chordMatches(actual, SKIP_CHORD)) { disableAndSkip(); return; }
+
   const seq = s.current.seq;
   const expected = seq[s.seqIndex];
 
@@ -879,7 +895,7 @@ function render() {
     // running / reveal / celebrate / cooldownwait
     addBtn("Pause", "pause", pauseGame, null, s.status === "celebrate");
     if (s.status === "running" || s.status === "reveal") {
-      addBtn("Disable and Skip", "ghost", disableAndSkip);
+      addBtn("Disable and Skip", "ghost", disableAndSkip, null, false, SKIP_CAP);
     }
     addBtn("Stop", "stop", stopGame);
   }
@@ -898,10 +914,16 @@ function progressHint(s) {
   return `sequence: ${dots} (${done}/${n})`;
 }
 
-function addBtn(label, cls, fn, aria, disabled) {
+function addBtn(label, cls, fn, aria, disabled, keyHint) {
   const b = document.createElement("button");
   b.className = "btn " + cls;
-  b.textContent = aria || label.replace("${app}", RAW[currentApp].label);
+  const text = aria || label.replace("${app}", RAW[currentApp].label);
+  if (keyHint) {
+    b.innerHTML = escapeHtml(text) + `<span class="btnkey">${escapeHtml(keyHint)}</span>`;
+    b.setAttribute("aria-keyshortcuts", SKIP_KEYS.replace("Ctrl", "Control"));
+  } else {
+    b.textContent = text;
+  }
   if (disabled) b.disabled = true;
   b.onclick = fn;
   controlsEl.appendChild(b);
