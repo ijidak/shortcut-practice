@@ -121,11 +121,13 @@
   .btn.pause { background: var(--warn); }
   .btn.stop  { background: var(--bad); color: #1a0808; }
   .btn.ghost { background: var(--card2); color: var(--text); border: 1px solid #3a446e; }
-  .btn .btnkey {
+  .btnkey {
     margin-left: 8px; padding: 1px 6px; border-radius: 5px;
     font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
     background: #11152a; border: 1px solid #3a446e; color: var(--muted);
   }
+  .tab.active .btnkey { background: rgba(11,16,32,.14); border-color: rgba(11,16,32,.35); color: #0b1020; }
+  .bulk .btnkey { margin-left: 6px; }
 
   .stats { display: flex; gap: 22px; justify-content: center; margin-top: 6px; color: var(--muted); font-size: 12px; }
   .stats b { color: var(--text); font-size: 15px; display: block; }
@@ -204,6 +206,10 @@
     Everything else is suppressed by the trainer. For the smoothest run, use this in a dedicated browser window.
     If a prompt turns out to be un-typeable here, hit <b>Disable and Skip</b> (or press <kbd>⌃⇧X</kbd>) — it unchecks
     that shortcut for the session and jumps straight to the next prompt.
+    <br><b>Mouse-free:</b> every button prints its own shortcut, all in the <kbd>⌃⇧</kbd> family —
+    <kbd>⌃⇧⏎</kbd> start (or play again), <kbd>⌃⇧Space</kbd> pause or resume, <kbd>⌃⇧Q</kbd> stop,
+    <kbd>⌃⇧X</kbd> disable and skip, <kbd>⌃⇧C</kbd>/<kbd>⌃⇧N</kbd> check or uncheck all,
+    and <kbd>⌃⇧1</kbd>–<kbd>⌃⇧6</kbd> to switch tabs. None of them can collide with a prompt.
   </div>
 
 <script>
@@ -642,27 +648,61 @@ function handleRevealComplete() {
 }
 
 /* ============================ Key handling ============================ */
-/* Keyboard equivalent of the Disable and Skip button. Deliberately picked so it can never
-   collide with a prompt: no Ctrl+Shift chord appears anywhere in RAW, and no tab pairs X
-   with Ctrl — so a stray press can't be a real answer, and a fumbled answer can't skip. */
-const SKIP_KEYS = "Ctrl+Shift+X";
-const SKIP_CHORD = parseChord(SKIP_KEYS);
-const SKIP_CAP = modSymbols(SKIP_CHORD) + prettyKeyCap(SKIP_CHORD.keyTok);
+/* Keyboard equivalents for every on-screen button, so a session never needs the mouse.
+   All of them live in the Ctrl+Shift family, which is safe by construction: no chord in
+   RAW uses Ctrl+Shift, and none of these keys is ever drilled with Ctrl alone or Shift
+   alone — so no single slipped modifier can fire a button instead of answering. Start and
+   Resume share a chord, as do Pause and Resume's opposite, because those buttons are never
+   on screen at the same time. */
+const BTN_KEYS = {
+  start:      "Ctrl+Shift+Enter",   // Start / Play again
+  pause:      "Ctrl+Shift+Space",   // Pause / Resume
+  stop:       "Ctrl+Shift+Q",
+  skip:       "Ctrl+Shift+X",
+  checkAll:   "Ctrl+Shift+C",
+  uncheckAll: "Ctrl+Shift+N",
+};
+const tabKeys = (i) => "Ctrl+Shift+" + (i + 1);
+
+const chordCache = new Map();
+function chordFor(keys) {
+  if (!chordCache.has(keys)) chordCache.set(keys, parseChord(keys));
+  return chordCache.get(keys);
+}
+/* "Ctrl+Shift+X" -> "⌃⇧X", the cap printed on the button. */
+function keyCap(keys) {
+  const c = chordFor(keys);
+  return modSymbols(c) + prettyKeyCap(c.keyTok);
+}
+function ariaKeys(keys) { return keys.replace("Ctrl", "Control"); }
+
+/* Any element carrying data-keychord is a button you can trigger from the keyboard.
+   Looking them up in the live DOM means a chord only works while its button is actually
+   on screen and enabled — the shortcuts can never drift from what is rendered. */
+function buttonForChord(actual) {
+  for (const el of document.querySelectorAll("[data-keychord]")) {
+    if (!el.disabled && chordMatches(actual, chordFor(el.dataset.keychord))) return el;
+  }
+  return null;
+}
 
 window.addEventListener("keydown", (e) => {
   const s = g();
   const active = (s.status === "running" || s.status === "reveal");
-  if (!active) return;
 
-  if (isModifierEvent(e)) { e.preventDefault(); return; }
+  if (isModifierEvent(e)) { if (active) e.preventDefault(); return; }
+
+  // A button shortcut wins over the drill, so it is never scored as an answer.
+  if (!e.repeat) {
+    const btn = buttonForChord(eventChord(e));
+    if (btn) { e.preventDefault(); btn.click(); return; }
+  }
+
+  if (!active) return;
   e.preventDefault();
   if (e.repeat) return;
 
   const actual = eventChord(e);
-
-  // Skip shortcut first, so it is never scored as an answer.
-  if (chordMatches(actual, SKIP_CHORD)) { disableAndSkip(); return; }
-
   const seq = s.current.seq;
   const expected = seq[s.seqIndex];
 
@@ -774,13 +814,17 @@ const shortlistEl = document.getElementById("shortlist");
 
 function renderTabs() {
   tabsEl.innerHTML = "";
-  for (const key of Object.keys(RAW)) {
+  Object.keys(RAW).forEach((key, i) => {
     const b = document.createElement("button");
     b.className = "tab" + (key === currentApp ? " active" : "");
-    b.textContent = RAW[key].label;
+    const keys = tabKeys(i);
+    b.innerHTML = escapeHtml(RAW[key].label) +
+                  `<span class="btnkey">${escapeHtml(keyCap(keys))}</span>`;
+    b.dataset.keychord = keys;
+    b.setAttribute("aria-keyshortcuts", ariaKeys(keys));
     b.onclick = () => switchApp(key);
     tabsEl.appendChild(b);
-  }
+  });
 }
 
 function updateTimerBar(frac, ms) {
@@ -878,22 +922,22 @@ function render() {
 
   // ---- Controls ----
   if (s.status === "idle") {
-    addBtn("Start", "start", startGame);
+    addBtn("Start", "start", startGame, null, false, BTN_KEYS.start);
   } else if (s.status === "mastered") {
-    addBtn("Play again", "start", resetApp);
-    addBtn("Stop", "stop", stopGame);
+    addBtn("Play again", "start", resetApp, null, false, BTN_KEYS.start);
+    addBtn("Stop", "stop", stopGame, null, false, BTN_KEYS.stop);
   } else if (s.status === "empty") {
-    addBtn("Stop", "stop", stopGame);
+    addBtn("Stop", "stop", stopGame, null, false, BTN_KEYS.stop);
   } else if (PAUSED_STATES.includes(s.status)) {
-    addBtn("Resume", "start", resumeGame);
-    addBtn("Stop", "stop", stopGame);
+    addBtn("Resume", "start", resumeGame, null, false, BTN_KEYS.pause);
+    addBtn("Stop", "stop", stopGame, null, false, BTN_KEYS.stop);
   } else {
     // running / reveal / celebrate / cooldownwait
-    addBtn("Pause", "pause", pauseGame, null, s.status === "celebrate");
+    addBtn("Pause", "pause", pauseGame, null, s.status === "celebrate", BTN_KEYS.pause);
     if (s.status === "running" || s.status === "reveal") {
-      addBtn("Disable and Skip", "ghost", disableAndSkip, null, false, SKIP_CAP);
+      addBtn("Disable and Skip", "ghost", disableAndSkip, null, false, BTN_KEYS.skip);
     }
-    addBtn("Stop", "stop", stopGame);
+    addBtn("Stop", "stop", stopGame, null, false, BTN_KEYS.stop);
   }
 
   // ---- Stats ----
@@ -910,13 +954,14 @@ function progressHint(s) {
   return `sequence: ${dots} (${done}/${n})`;
 }
 
-function addBtn(label, cls, fn, aria, disabled, keyHint) {
+function addBtn(label, cls, fn, aria, disabled, keys) {
   const b = document.createElement("button");
   b.className = "btn " + cls;
   const text = aria || label.replace("${app}", RAW[currentApp].label);
-  if (keyHint) {
-    b.innerHTML = escapeHtml(text) + `<span class="btnkey">${escapeHtml(keyHint)}</span>`;
-    b.setAttribute("aria-keyshortcuts", SKIP_KEYS.replace("Ctrl", "Control"));
+  if (keys) {
+    b.innerHTML = escapeHtml(text) + `<span class="btnkey">${escapeHtml(keyCap(keys))}</span>`;
+    b.dataset.keychord = keys;
+    b.setAttribute("aria-keyshortcuts", ariaKeys(keys));
   } else {
     b.textContent = text;
   }
@@ -981,8 +1026,10 @@ function renderShortList() {
     <div class="shortlist-head">
       <span class="title">${escapeHtml(RAW[currentApp].label)} — <b>${activeCount}</b> of ${s.shortcuts.length} shortcuts active this session</span>
       <span class="bulk">
-        <button type="button" data-all="1">Check all</button>
-        <button type="button" data-all="0">Uncheck all</button>
+        <button type="button" data-all="1" data-keychord="${BTN_KEYS.checkAll}"
+                aria-keyshortcuts="${ariaKeys(BTN_KEYS.checkAll)}">Check all<span class="btnkey">${keyCap(BTN_KEYS.checkAll)}</span></button>
+        <button type="button" data-all="0" data-keychord="${BTN_KEYS.uncheckAll}"
+                aria-keyshortcuts="${ariaKeys(BTN_KEYS.uncheckAll)}">Uncheck all<span class="btnkey">${keyCap(BTN_KEYS.uncheckAll)}</span></button>
       </span>
     </div>
     <ul class="srows">${rows}</ul>
