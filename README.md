@@ -12,8 +12,8 @@ Pick an app, hit **Start**, and race a 5-second clock to type the shortcut for t
 ## How it works
 
 The app is organized into tabs — one per app, each a separate practice session with its own
-shortcut set. Open `index.html` to see what's currently there; tmux, iTerm2, Cursor/VS Code, and
-Finder have been the mainstays.
+shortcut set. Open `index.html` to see what's currently there; tmux, iTerm2, Cursor/VS Code,
+Finder, Vim, and Claude Code have been the mainstays.
 
 The tab list isn't fixed. Ask Claude Code (or your AI tool of choice) to add one for an app you use,
 or drop one you don't. See
@@ -46,6 +46,20 @@ or drop one you don't. See
 Plus **Disable and Skip**, for when macOS or the browser swallows a combo before the page ever sees it.
 It drops that shortcut for the session and moves on.
 
+You never need the mouse. Every button has a keyboard shortcut, printed on the button itself so
+there's nothing to memorize:
+
+- `⌃⇧⏎` — Start / Play again
+- `⌃⇧Space` — Pause / Resume
+- `⌃⇧Q` — Stop
+- `⌃⇧X` — Disable and Skip
+- `⌃⇧1`…`⌃⇧6` — switch tabs, numbered left to right
+
+They all live in the `Ctrl+Shift` family, which nothing in the shortcut data uses — and none of these
+keys is drilled with Ctrl alone or Shift alone either, so one slipped modifier can't fire a button
+instead of answering the prompt. Each shortcut works only while its button is actually on screen and
+enabled.
+
 ### The checklist
 
 Below the game card, every shortcut for the current tab is listed with a checkbox and a status badge:
@@ -56,8 +70,8 @@ Below the game card, every shortcut for the current tab is listed with a checkbo
 - `off` — unchecked, out of rotation
 
 Uncheck anything you don't want to drill and it leaves the rotation immediately, even mid-round.
-**Check all** / **Uncheck all** are there for bulk changes. The stats row at the bottom tracks
-*in rotation / got once / mastered / off*.
+**Check all** (`⌃⇧C`) / **Uncheck all** (`⌃⇧N`) are there for bulk changes. The stats row at the
+bottom tracks *in rotation / got once / mastered / off*.
 
 ### Multi-key sequences
 
@@ -118,7 +132,7 @@ where things go. Run `claude` in the repo and ask in plain English.
 
 > Add a tab for Chrome DevTools shortcuts.
 
-> Add a Vim tab with the normal-mode motions I should have memorized by now.
+> Add a Slack tab with the navigation shortcuts — I click around way too much in there.
 
 > Remove the Finder tab. I don't practice those.
 
