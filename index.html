@@ -307,6 +307,23 @@ const RAW = {
     ]
   },
 
+  vim: {
+    label: "Vim",
+    blurb: "The ten vim commands worth learning first — everything here is typed in <b>normal mode</b> (press <b>Esc</b> if you are not sure you are in it). A bare cap like <b>P</b> means press that key on its own, lowercase; <b>⇧P</b> would mean hold Shift. Two caps in a row are a sequence — <b>D</b> then <b>D</b> is <b>dd</b>. Stuck in a file you do not want to save? <b>:q!</b> then Enter.",
+    shortcuts: [
+      { name: "Return to normal mode",                   keys: ["Esc"] },
+      { name: "Insert before the cursor",                keys: ["I"] },
+      { name: "Open a new line below and insert",        keys: ["O"] },
+      { name: "Delete the current line",                 keys: ["D", "D"] },
+      { name: "Yank (copy) the current line",            keys: ["Y", "Y"] },
+      { name: "Paste after the cursor",                  keys: ["P"] },
+      { name: "Undo",                                    keys: ["U"] },
+      { name: "Start a forward search",                  keys: ["/"] },
+      { name: "Save the file",                           keys: [":", "W", "Enter"] },
+      { name: "Save and quit",                           keys: [":", "W", "Q", "Enter"] },
+    ]
+  },
+
   claudecode: {
     label: "Claude Code",
     blurb: "Claude Code's own CLI shortcuts. Entries marked <b>Vim</b> need vim editor mode turned on (<b>/config</b> → Editor mode). The <b>⌥</b> ones need Option configured as Meta in your terminal. A bare cap like <b>V</b> means press the key on its own; <b>⇧V</b> means hold Shift.",
