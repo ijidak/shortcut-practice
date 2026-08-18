@@ -150,3 +150,10 @@ where things go. Run `claude` in the repo and ask in plain English.
 
 The timing knobs (`ROUND_MS`, `COOLDOWN_MS`, `CELEBRATE_MS`) sit at the top of the game-state section
 if you'd rather change them by hand.
+
+---
+
+## License
+
+[MIT](LICENSE). Fork it, reshape it, ship it — commercially or otherwise. The only condition is that
+the copyright notice and license text ride along with any copy or substantial portion of it.
