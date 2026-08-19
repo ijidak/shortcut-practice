@@ -318,6 +318,13 @@ const RAW = {
     blurb: "The vim commands worth learning first — everything here is typed in <b>normal mode</b> (press <b>Esc</b> if you are not sure you are in it). A bare cap like <b>P</b> means press that key on its own, lowercase; <b>⇧P</b> means hold Shift, so <b>O</b> and <b>⇧O</b> are different commands. Two caps in a row are a sequence — <b>D</b> then <b>D</b> is <b>dd</b>. Stuck in a file you do not want to save? <b>:q!</b> then Enter.",
     shortcuts: [
       { name: "Return to normal mode",                   keys: ["Esc"] },
+      { name: "Move to the beginning of the line",       keys: ["0"] },
+      { name: "Move to the end of the line",             keys: ["$"] },
+      { name: "Move down one line",                      keys: ["J"] },
+      { name: "Move up one line",                        keys: ["K"] },
+      { name: "Move forward one word",                   keys: ["W"] },
+      { name: "Move back one word",                      keys: ["B"] },
+      { name: "Move to the end of the file",             keys: ["Shift+G"] },
       { name: "Insert before the cursor",                keys: ["I"] },
       { name: "Append after the cursor",                 keys: ["A"] },
       { name: "Append at the end of the line",           keys: ["Shift+A"] },
